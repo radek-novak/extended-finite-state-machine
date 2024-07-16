@@ -1,0 +1,19 @@
+{
+  "name": "extended-finite-state-machine",
+  "version": "1.0.0",
+  "description": "[explanation](https://home.cs.colorado.edu/~srirams/courses/fcps-spring17/lectures/l2.html)",
+  "main": "index.js",
+  "scripts": {
+    "build:tests": "tsc",
+    "test": "npm run build:tests; node --test"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^20.14.10"
+  },
+  "dependencies": {
+    "typescript": "^5.5.3"
+  }
+}
