@@ -9,9 +9,9 @@ type Guard =
       predicate: "=" | "<" | ">";
     };
 type Action = {
-  updateField: string;
-  action?: "subtract" | "add" | "set";
-  source: `$state.${string}` | `$event.${string}` | string | number | boolean;
+  updateField: `$state.${string}`;
+  action: "subtract" | "add" | "set";
+  source: `$state.${string}` | `$event.${string}` | number | boolean;
 };
 
 type BaseTransition<Event extends { type: string }, State extends string> = {
@@ -27,13 +27,16 @@ class EFSM<
   Event extends { type: string },
   Transitions extends Record<State, BaseTransition<Event, State>[]>
 > {
-  private states: State[];
   private stateVariables: StateVariables;
   private currentState: State;
   private transitionSet: Transitions;
   private predicateFunctions: Record<
     string,
     (operands: ValuePath[]) => boolean
+  >;
+  private updateFunctions: Record<
+    string,
+    (incoming: any, existing: any) => void
   >;
 
   constructor(startState: State, transitionSet: Transitions) {
@@ -46,6 +49,12 @@ class EFSM<
       "=": (operands) =>
         operands.length > 1 &&
         operands.every((operand) => operand === operands[0]),
+    };
+
+    this.updateFunctions = {
+      subtract: (incoming, existing) => existing - incoming,
+      add: (incoming, existing) => existing + incoming,
+      set: (incoming) => incoming,
     };
   }
 
@@ -71,7 +80,20 @@ class EFSM<
     }
 
     const nextState = transition.to;
-    const action = transition.action;
+    const actions = transition.actions;
+
+    this.currentState = nextState;
+
+    for (const action of actions) {
+      this.executeAction(action, event);
+    }
+  }
+
+  executeAction(action: Action, event: Event) {
+    const incoming = this.resolvePath(action.source, event);
+    const existing = this.resolvePath(action.updateField, event);
+
+    return this.updateFunctions[action.action](incoming, existing);
   }
 
   resolvePath(path: ValuePath, event?: Event) {
@@ -114,5 +136,17 @@ class EFSM<
     return this.transitionSet[state].filter(
       (transition) => transition.eventType === event.type
     );
+  }
+
+  toJSON() {
+    return {
+      state: this.currentState,
+      stateVariables: this.stateVariables,
+    };
+  }
+
+  fromJSON(data: { state: State; stateVariables: StateVariables }) {
+    this.currentState = data.state;
+    this.stateVariables = { ...data.stateVariables };
   }
 }
