@@ -4,6 +4,7 @@
   "description": "[explanation](https://home.cs.colorado.edu/~srirams/courses/fcps-spring17/lectures/l2.html)",
   "main": "index.js",
   "scripts": {
+    "type-check": "tsc --noEmit",
     "build:tests": "tsc",
     "test": "npm run build:tests; node --test"
   },

@@ -4,6 +4,7 @@
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "target": "es6",
+    "strict": true,
     "noImplicitAny": true,
     "moduleResolution": "node",
     "sourceMap": true,
@@ -13,5 +14,5 @@
       "*": ["node_modules/*", "src/types/*"]
     }
   },
-  "include": ["src/**/*.test.ts"]
+  "include": ["src/**/*.test.ts", "src/tests/..scenario-bank-1.test.ts"]
 }
