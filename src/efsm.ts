@@ -18,7 +18,7 @@ type BaseTransition<Event extends { type: string }, State extends string> = {
   to: State;
   eventType: Event["type"];
   guard: Guard;
-  actions: Action[];
+  actions?: Action[];
 };
 
 class EFSM<
