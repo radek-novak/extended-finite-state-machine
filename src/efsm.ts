@@ -38,10 +38,17 @@ class EFSM<
     string,
     (incoming: any, existing: any) => void
   >;
+  private states: Set<State>;
 
-  constructor(startState: State, transitionSet: Transitions) {
+  constructor(
+    startState: State,
+    transitionSet: Transitions,
+    initialStateVariables = {} as StateVariables
+  ) {
     this.currentState = startState;
     this.transitionSet = transitionSet;
+    this.stateVariables = initialStateVariables;
+    this.states = new Set(Object.keys(initialStateVariables) as State[]);
 
     this.predicateFunctions = {
       ">": (operands) => operands.length > 1 && operands[0] > operands[1],
@@ -65,7 +72,7 @@ class EFSM<
       event
     );
 
-    if (!transitionsForState) {
+    if (transitionsForState.length === 0) {
       throw new Error(
         `No transition found for event "${event.type}" in state "${currentState}"`
       );
@@ -80,7 +87,7 @@ class EFSM<
     }
 
     const nextState = transition.to;
-    const actions = transition.actions;
+    const actions = transition.actions ?? [];
 
     this.currentState = nextState;
 
@@ -150,3 +157,5 @@ class EFSM<
     this.stateVariables = { ...data.stateVariables };
   }
 }
+
+export default EFSM;

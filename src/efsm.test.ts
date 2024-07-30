@@ -1,92 +1,220 @@
-const events = {
-  createAccount: (overdraft = false) => ({
-    id: Math.floor(Math.random() * 1000000),
-    type: "CreateAccount",
-    verified: false,
-    overdraft,
-    balance: 0,
-  }),
-  verifyAccount: (id: number) => ({
-    type: "VerifyAccount",
-    id,
-  }),
-  increaseBalance: (id: number, amount: number) => ({
-    type: "IncreaseBalance",
-    amount,
-    id,
-  }),
-  decreaseBalance: (id: number, amount: number) => ({
-    type: "DecreaseBalance",
-    amount,
-    id,
-  }),
-  zeroBalance: (id: number) => ({
-    type: "ZeroBalance",
-    id,
-  }),
-};
+import EFSM from "./efsm";
+const assert = require("node:assert");
 
-const transitionSet = {
-  initial: [
+const test = require("node:test");
+
+test("resolvePath", () => {
+  const efsm = new EFSM<
+    "initial",
+    { stA: number },
+    { type: "e1"; a: number },
+    { initial: [] }
+  >(
+    "initial",
     {
-      eventType: "CreateAccount",
-      guard: true,
-      to: "createdUnverified",
-      // actions: [],
+      initial: [],
     },
-  ],
-  createdUnverified: [
-    {
-      eventType: "VerifyAccount",
-      guard: true,
-      to: "active",
-      actions: {
-        updateField: "verified",
-        source: true,
+    { stA: 4 }
+  );
+
+  assert.strictEqual(efsm.resolvePath(true), true);
+  assert.strictEqual(efsm.resolvePath(false), false);
+  assert.strictEqual(efsm.resolvePath(-33), -33);
+  assert.strictEqual(efsm.resolvePath("$event.a", { type: "e1", a: 45 }), 45);
+  assert.strictEqual(efsm.resolvePath("$state.stA", { type: "e1", a: 45 }), 4);
+});
+
+test("evaluateGuard", () => {
+  const efsm = new EFSM("initial", {
+    initial: [],
+  });
+
+  assert.strictEqual(efsm.evaluateGuard(true, { type: "any" }), true);
+  assert.strictEqual(efsm.evaluateGuard(false, { type: "any" }), false);
+  assert.strictEqual(
+    efsm.evaluateGuard(
+      {
+        operands: [1, 2],
+        predicate: "<",
       },
-    },
-  ],
-  active: [
-    {
-      eventType: "ZeroBalance",
-      guard: true,
-      to: "active",
-      actions: {
-        updateField: "$state.balance",
-        source: 0,
-        action: "set",
+      { type: "any" }
+    ),
+    true,
+    "1 < 2 = true"
+  );
+  assert.strictEqual(
+    efsm.evaluateGuard(
+      {
+        operands: [1, 2],
+        predicate: ">",
       },
-    },
-    {
-      eventType: "IncreaseBalance",
-      guard: true,
-      to: "active",
-      actions: {
-        updateField: "$state.balance",
-        source: "$event.amount",
-        action: "add",
+      { type: "any" }
+    ),
+    false
+  );
+  assert.strictEqual(
+    efsm.evaluateGuard(
+      {
+        operands: [1, 2],
+        predicate: "=",
       },
-    },
+      { type: "any" }
+    ),
+    false
+  );
+  assert.strictEqual(
+    efsm.evaluateGuard(
+      {
+        operands: [2, 1],
+        predicate: ">",
+      },
+      { type: "any" }
+    ),
+    true
+  );
+});
+
+test("evaluateGuard with value paths", () => {
+  const efsm = new EFSM<
+    "initial",
+    { stA: number },
+    { type: "e1"; a: number },
+    { initial: [] }
+  >(
+    "initial",
     {
-      eventType: "DecreaseBalance",
-      guard: [
+      initial: [],
+    },
+    { stA: 4 }
+  );
+
+  assert.strictEqual(
+    efsm.evaluateGuard(
+      {
+        operands: ["$state.stA", 2],
+        predicate: "<",
+      },
+      { type: "e1", a: 1 }
+    ),
+    false
+  );
+  assert.strictEqual(
+    efsm.evaluateGuard(
+      {
+        operands: ["$state.stA", 5],
+        predicate: "<",
+      },
+      { type: "e1", a: 1 }
+    ),
+    true
+  );
+  assert.strictEqual(
+    efsm.evaluateGuard(
+      {
+        operands: ["$state.stA", "$event.a"],
+        predicate: "<",
+      },
+      { type: "e1", a: 1 }
+    ),
+    false
+  );
+  assert.strictEqual(
+    efsm.evaluateGuard(
+      {
+        operands: ["$state.stA", "$event.a"],
+        predicate: "<",
+      },
+      { type: "e1", a: 6 }
+    ),
+    true
+  );
+});
+
+test("getTransitionsForStateAndEvent", () => {
+  const efsm = new EFSM<
+    "initial" | "createdUnverified",
+    { stA: number },
+    { type: "CreateAccount"; a: number },
+    { initial: any[]; createdUnverified: any[] }
+  >(
+    "initial",
+    {
+      initial: [
         {
-          left: "$state.balance",
-          right: "$event.amount",
-          predicate: "<",
-        },
-        {
-          left: "$state.overdraft",
-          right: true,
-          predicate: "=",
+          eventType: "CreateAccount",
+          guard: true,
+          to: "createdUnverified",
         },
       ],
-      to: "active",
-      actions: {
-        updateField: "$state.balance",
-        source: "$event.amount",
-        action: "subtract",
-      },
+      createdUnverified: [],
     },
-  ],
-};
+    { stA: 4 }
+  );
+
+  assert.deepEqual(
+    efsm.getTransitionsForStateAndEvent("initial", {
+      type: "CreateAccount",
+      a: 1,
+    }),
+    [
+      {
+        eventType: "CreateAccount",
+        guard: true,
+        to: "createdUnverified",
+      },
+    ]
+  );
+  assert.deepEqual(
+    efsm.getTransitionsForStateAndEvent("createdUnverified", {
+      type: "CreateAccount",
+      a: 1,
+    }),
+    []
+  );
+});
+
+test("processEvent", () => {
+  const efsm = new EFSM<
+    "initial" | "createdUnverified",
+    { stA: number },
+    { type: "CreateAccount" } | { type: "Unknown" },
+    { initial: any[]; createdUnverified: any[] }
+  >(
+    "initial",
+    {
+      initial: [
+        {
+          eventType: "CreateAccount",
+          guard: true,
+          to: "createdUnverified",
+        },
+      ],
+      createdUnverified: [],
+    },
+    { stA: 4 }
+  );
+
+  assert.strictEqual(efsm.toJSON().state, "initial");
+
+  try {
+    efsm.processEvent({
+      type: "Unknown",
+    });
+  } catch {}
+
+  assert.strictEqual(efsm.toJSON().state, "initial");
+
+  efsm.processEvent({
+    type: "CreateAccount",
+  });
+
+  assert.strictEqual(efsm.toJSON().state, "createdUnverified");
+
+  try {
+    efsm.processEvent({
+      type: "CreateAccount",
+    });
+  } catch {}
+
+  assert.strictEqual(efsm.toJSON().state, "createdUnverified");
+});
