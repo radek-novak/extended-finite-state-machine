@@ -20,6 +20,22 @@ type BaseTransition<Event extends { type: string }, State extends string> = {
   guard: Guard;
   actions?: Action[];
 };
+type PredicateFunctionSet = Record<string, (operands: ValuePath[]) => boolean>;
+
+type UpdateFunctionSet = Record<string, (incoming: any, existing: any) => void>;
+
+const basicPredicateFns: PredicateFunctionSet = {
+  ">": (operands) => operands.length > 1 && operands[0] > operands[1],
+  "<": (operands) => operands.length > 1 && operands[0] < operands[1],
+  "=": (operands) =>
+    operands.length > 1 && operands.every((operand) => operand === operands[0]),
+};
+
+const basicUpdateFunctions: UpdateFunctionSet = {
+  subtract: (incoming, existing) => existing - incoming,
+  add: (incoming, existing) => existing + incoming,
+  set: (incoming) => incoming,
+};
 
 class EFSM<
   State extends string,
@@ -30,39 +46,25 @@ class EFSM<
   private stateVariables: StateVariables;
   private currentState: State;
   private transitionSet: Transitions;
-  private predicateFunctions: Record<
-    string,
-    (operands: ValuePath[]) => boolean
-  >;
-  private updateFunctions: Record<
-    string,
-    (incoming: any, existing: any) => void
-  >;
+  private predicateFunctions: PredicateFunctionSet;
+  private updateFunctions: UpdateFunctionSet;
   private states: Set<State>;
 
   constructor(
     startState: State,
     transitionSet: Transitions,
-    initialStateVariables = {} as StateVariables
+    initialStateVariables = {} as StateVariables,
+    predicateFunctions = basicPredicateFns,
+    updateFunctions = basicUpdateFunctions
   ) {
     this.currentState = startState;
     this.transitionSet = transitionSet;
     this.stateVariables = initialStateVariables;
     this.states = new Set(Object.keys(initialStateVariables) as State[]);
 
-    this.predicateFunctions = {
-      ">": (operands) => operands.length > 1 && operands[0] > operands[1],
-      "<": (operands) => operands.length > 1 && operands[0] < operands[1],
-      "=": (operands) =>
-        operands.length > 1 &&
-        operands.every((operand) => operand === operands[0]),
-    };
+    this.predicateFunctions = predicateFunctions;
 
-    this.updateFunctions = {
-      subtract: (incoming, existing) => existing - incoming,
-      add: (incoming, existing) => existing + incoming,
-      set: (incoming) => incoming,
-    };
+    this.updateFunctions = updateFunctions;
   }
 
   processEvent(event: Event) {
