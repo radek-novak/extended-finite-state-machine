@@ -1,4 +1,4 @@
-import { getter } from "./utils";
+import { getter, setter } from "./utils";
 type ValuePath = `$state.${string}` | `$event.${string}` | number | boolean;
 
 type Guard =
@@ -97,10 +97,23 @@ class EFSM<
   }
 
   executeAction(action: Action, event: Event) {
+    if (typeof this.updateFunctions[action.action] !== "function") {
+      throw new Error(
+        `Unknown action ${action.action}. Only know ${Object.keys(
+          this.updateFunctions
+        ).join(", ")}`
+      );
+    }
     const incoming = this.resolvePath(action.source, event);
     const existing = this.resolvePath(action.updateField, event);
 
-    return this.updateFunctions[action.action](incoming, existing);
+    const updateValue = this.updateFunctions[action.action](incoming, existing);
+
+    setter(
+      this.stateVariables,
+      action.updateField.replace("$state.", ""),
+      updateValue
+    );
   }
 
   resolvePath(path: ValuePath, event?: Event) {

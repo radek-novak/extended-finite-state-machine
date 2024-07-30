@@ -1,7 +1,7 @@
 import EFSM from "./efsm";
 const assert = require("node:assert");
 
-const test = require("node:test");
+import test from "node:test";
 
 test("resolvePath", () => {
   const efsm = new EFSM<
